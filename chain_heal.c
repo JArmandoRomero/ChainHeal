@@ -33,10 +33,85 @@ struct answer
 
 struct node **create_nodes_array(size_t *n)
 {
-}
 
+  char buffer[1024];
+  struct node *last = NULL; // temporary previous pointer
+  *n = 0;
+
+  // First, read all nodes and link them backward
+  while (fgets(buffer, sizeof(buffer), stdin))
+  {
+    buffer[strcspn(buffer, "\r\n")] = '\0';
+
+    struct node *node = malloc(sizeof(struct node));
+    if (!node)
+    {
+      fprintf(stderr, "malloc failed\n");
+      exit(1);
+    }
+
+    char temp[128];
+    int count = sscanf(buffer, "%d %d %d %d %127[^\n]",
+                       &node->x, &node->y, &node->cur_PP, &node->max_PP, temp);
+
+    if (count != 5)
+    {
+      fprintf(stderr, "Line didn't match format: %s\n", buffer);
+      free(node);
+      continue;
+    }
+
+    // Allocate memory for name and copy
+    node->name = malloc(strlen(temp) + 1);
+    if (!node->name)
+    {
+      fprintf(stderr, "malloc failed\n");
+      exit(1);
+    }
+    strcpy(node->name, temp);
+
+    node->visited = false;
+    node->adj_size = 0;
+
+    // Temporary backward linkage
+    node->adj_list = (struct node **)last;
+    last = node;
+
+    (*n)++;
+  }
+
+  // Allocate final array of node pointers
+  struct node **nodes_array = malloc(*n * sizeof(struct node *));
+  if (!nodes_array)
+  {
+    fprintf(stderr, "malloc failed\n");
+    exit(1);
+  }
+
+  // Fill array in input order
+  struct node *current = last;
+  for (size_t i = *n; i > 0; i--)
+  {
+    nodes_array[i - 1] = current;
+    current = (struct node *)current->adj_list;
+  }
+
+  // Reset adj_list for normal use
+  for (size_t i = 0; i < *n; i++)
+  {
+    nodes_array[i]->adj_list = NULL;
+  }
+
+  return nodes_array;
+}
 bool adjacent(int jump_range, struct node *a, struct node *b)
 {
+  // Compute the differences in x and y coordinates
+  int dx = a->x - b->x;
+  int dy = a->y - b->y;
+
+  // Return true if squared distance is within jump_range squared
+  return (dx * dx + dy * dy) <= (jump_range * jump_range);
 }
 
 void setup_graph(int jump_range, size_t num_nodes, struct node **nodes)
@@ -71,8 +146,6 @@ int main(int argc, char **argv)
   struct answer a = {0};
   // Buffer for standard input
 
-  char buffer[1024];
-
   // parse command line parameters on to the params struct
   p.initial_range = atoi(argv[1]);
   p.jump_range = atoi(argv[2]);
@@ -80,42 +153,33 @@ int main(int argc, char **argv)
   p.initial_power = atoi(argv[4]);
   p.power_reduction = atof(argv[5]);
 
-  struct node n;
+  size_t numberOfNodes = 0;
 
-  while (fgets(buffer, sizeof(buffer), stdin))
+  struct node **nodes = create_nodes_array(&numberOfNodes);
+
+  // printf("Total nodes: %zu\n", numberOfNodes);
+  // for (size_t i = 0; i < numberOfNodes; i++)
+  // {
+  //   printf("Node %zu: x=%d y=%d curr_PP=%d max_PP=%d name=%s\n",
+  //          i, nodes[i]->x, nodes[i]->y, nodes[i]->cur_PP, nodes[i]->max_PP, nodes[i]->name);
+  // }
+
+  if (adjacent(p.jump_range, nodes[0], nodes[1]))
   {
-    // Strip trailing \r\n
-    buffer[strcspn(buffer, "\r\n")] = '\0';
-
-    int count = sscanf(buffer, "%d %d %d %d %127[^\n]",
-                       &n.x, &n.y, &n.cur_PP, &n.max_PP, n.name);
-
-    if (count == 5)
-    {
-      printf("x: %d\n", n.x);
-      printf("y: %d\n", n.y);
-      printf("curr_PP: %d\n", n.cur_PP);
-      printf("max_PP: %d\n", n.max_PP);
-      printf("name: %s\n", n.name);
-      printf("----\n");
-    }
-    else
-    {
-      fprintf(stderr, "Line didn't match format: %s\n", buffer);
-    }
+    printf("Node 0 and Node 1 are within jump range!\n");
+  }
+  else
+  {
+    printf("Node 0 and Node 1 are NOT within jump range.\n");
   }
 
-  /*
-    Parse Debugfing
-  printf("%d\n", p.initial_range);
-  printf("%d\n", p.jump_range);
-  printf("%d\n", p.num_jumps);
-  printf("%d\n", p.initial_power);
-  printf("%.2f\n", p.power_reduction);
-
-  */
-
-  // cleanup:
+  // Cleanup
+  for (size_t i = 0; i < numberOfNodes; i++)
+  {
+    free(nodes[i]->name);
+    free(nodes[i]);
+  }
+  free(nodes);
 
   return 0;
 }
