@@ -116,10 +116,71 @@ bool adjacent(int jump_range, struct node *a, struct node *b)
 
 void setup_graph(int jump_range, size_t num_nodes, struct node **nodes)
 {
+  // Temporary array to keep track of the next insertion index for each node
+  int *indexes = malloc(num_nodes * sizeof(int));
+  if (!indexes)
+  {
+    fprintf(stderr, "malloc failed for indexes\n");
+    exit(1);
+  }
+
+  // Step 1: Count neighbors and allocate adjacency arrays
+  for (size_t i = 0; i < num_nodes; i++)
+  {
+    int count = 0;
+
+    // Count how many other nodes are adjacent
+    for (size_t j = 0; j < num_nodes; j++)
+    {
+      if (i != j && adjacent(jump_range, nodes[i], nodes[j]))
+      {
+        count++;
+      }
+    }
+
+    nodes[i]->adj_size = count;
+    nodes[i]->adj_list = malloc(count * sizeof(struct node *));
+    if (!nodes[i]->adj_list)
+    {
+      fprintf(stderr, "malloc failed for adj_list of node %zu\n", i);
+      exit(1);
+    }
+
+    indexes[i] = 0; // Initialize the insertion index
+  }
+
+  // Step 2: Fill adjacency lists
+  for (size_t i = 0; i < num_nodes; i++)
+  {
+    for (size_t j = 0; j < num_nodes; j++)
+    {
+      if (i != j && adjacent(jump_range, nodes[i], nodes[j]))
+      {
+        // Place the neighbor in the correct position
+        nodes[i]->adj_list[indexes[i]] = nodes[j];
+        indexes[i]++; // Move to next insertion slot
+      }
+    }
+  }
+
+  free(indexes); // Cleanup temporary array
 }
 
 void print_adjacency(size_t num_nodes, struct node **nodes)
 {
+  for (size_t i = 0; i < num_nodes; i++)
+  {
+    // Print the node’s name
+    printf("%s:\n", nodes[i]->name);
+
+    // Print all adjacent nodes indented
+    for (int j = 0; j < nodes[i]->adj_size; j++)
+    {
+      printf("  %s\n", nodes[i]->adj_list[j]->name);
+    }
+
+    printf("\n"); // extra line for readability
+  }
 }
 
 void check_best(struct params *p, struct answer *a)
@@ -164,14 +225,17 @@ int main(int argc, char **argv)
   //          i, nodes[i]->x, nodes[i]->y, nodes[i]->cur_PP, nodes[i]->max_PP, nodes[i]->name);
   // }
 
-  if (adjacent(p.jump_range, nodes[0], nodes[1]))
-  {
-    printf("Node 0 and Node 1 are within jump range!\n");
-  }
-  else
-  {
-    printf("Node 0 and Node 1 are NOT within jump range.\n");
-  }
+  // if (adjacent(p.jump_range, nodes[0], nodes[1]))
+  // {
+  //   printf("Node 0 and Node 1 are within jump range!\n");
+  // }
+  // else
+  // {
+  //   printf("Node 0 and Node 1 are NOT within jump range.\n");
+  // }
+
+  setup_graph(p.jump_range, numberOfNodes, nodes);
+  print_adjacency(numberOfNodes, nodes);
 
   // Cleanup
   for (size_t i = 0; i < numberOfNodes; i++)
